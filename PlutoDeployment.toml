@@ -1,0 +1,10 @@
+TEMPFILE=$(mktemp)
+cat > $TEMPFILE << __EOF__
+[SliderServer]
+port = 8080
+host = "0.0.0.0"
+
+# more configuration can go here!
+__EOF__
+
+sudo mv $TEMPFILE pluto-slider-server-environment/PlutoDeployment.toml
