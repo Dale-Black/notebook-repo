@@ -1,13 +1,25 @@
 ### A Pluto.jl notebook ###
-# v0.19.22
+# v0.19.25
 
 using Markdown
 using InteractiveUtils
+
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+end
 
 # ╔═╡ d1b04f49-471e-4603-9114-243165a9a26a
 # ╠═╡ show_logs = false
 begin
 	using Pkg
+	Pkg.activate(mktempdir())
+	Pkg.instantiate()
 	Pkg.add(url="https://github.com/hstrey/BDTools.jl")
 	Pkg.add(["Plots", "NIfTI", "DelimitedFiles", "PlutoUI"])
 	
@@ -53,6 +65,20 @@ angles, firstrotidx = BDTools.getangles(joinpath(DATA_DIR,  "log.csv"))
 # ╔═╡ 7d57840f-daad-43da-8486-a53653b483ec
 sliceinfo, _ = readdlm(joinpath(DATA_DIR, "slices.csv"), ',', Int, header=true)
 
+# ╔═╡ 03fd1384-957d-4060-85de-92680488ce4a
+md"""
+## Visualize Phantom
+"""
+
+# ╔═╡ 30ef48a2-987c-40c2-a888-e8d0259451e7
+phantom_ts_100 = phantom_ts.raw[:, :, :, 100];
+
+# ╔═╡ 40e8557a-8478-466e-9db1-66437495fcd2
+@bind a PlutoUI.Slider(axes(phantom_ts_100, 3); default=5, show_value=true)
+
+# ╔═╡ affedccc-ddc5-4572-993d-132208878e88
+heatmap(phantom_ts_100[:, :, a])
+
 # ╔═╡ 6a499bc8-760b-4f39-8eb9-7f19d33572b7
 md"""
 ## Construct static phantom
@@ -64,28 +90,6 @@ Resulting object contains an ellipse fit for each slice of a static phantom.
 
 # ╔═╡ f52b6f5b-bf2a-458f-a9f5-ecd16e6ed790
 sph = staticphantom(convert(Array, phantom_ts), sliceinfo);
-
-# ╔═╡ 8fd8d0d5-9a1b-4cc1-8f1b-271b779b4234
-md"""
-### Show phantom center axis
-
-Using phantom fitted ellipse parameters, we construct a phantom center axis (z-axis),
-and fit ellipse centers on this axis.
-"""
-
-# ╔═╡ 16a3b242-cbb0-4a98-9408-cf9540e03cfb
-let 
-	ecs = BDTools.centers(sph)
-	rng = collect(-1.:0.15:1.)
-    # show original data
-    p = scatter(ecs[:,1], ecs[:,2], label="centers", legend=:topleft)
-    # show predicted phantom center axis
-    cc = map(t->BDTools.predictcenter(sph, t), rng)
-    plot!(p, map(first, cc), map(last, cc), label="axis")
-    # project slice centers to a fitted center axis
-    xy = BDTools.fittedcenters(sph)
-    scatter!(p, xy[:,1], xy[:,2], label="fitted")
-end
 
 # ╔═╡ 8cc3293a-5118-4206-932c-487bcbe6f914
 md"""
@@ -117,6 +121,28 @@ let
     # show generated image
     pgen = plot(gen, aspect_ratio=1.0, axis=nothing, framestyle=:none, title="Rotated at $(rad2deg(α))°", legend=:none)
     plot(pave, pgen)
+end
+
+# ╔═╡ 8fd8d0d5-9a1b-4cc1-8f1b-271b779b4234
+md"""
+### Show phantom center axis
+
+Using phantom fitted ellipse parameters, we construct a phantom center axis (z-axis),
+and fit ellipse centers on this axis.
+"""
+
+# ╔═╡ 16a3b242-cbb0-4a98-9408-cf9540e03cfb
+let 
+	ecs = BDTools.centers(sph)
+	rng = collect(-1.:0.15:1.)
+    # show original data
+    p = scatter(ecs[:,1], ecs[:,2], label="centers", legend=:topleft)
+    # show predicted phantom center axis
+    cc = map(t->BDTools.predictcenter(sph, t), rng)
+    plot!(p, map(first, cc), map(last, cc), label="axis")
+    # project slice centers to a fitted center axis
+    xy = BDTools.fittedcenters(sph)
+    scatter!(p, xy[:,1], xy[:,2], label="fitted")
 end
 
 # ╔═╡ 39de5d21-f3fd-4c0b-897f-6f4b6c00205c
@@ -160,6 +186,10 @@ end
 # ╟─0066b927-8c3e-4d47-90d1-08a10b9bc0e0
 # ╠═fd8e9d78-a118-47fd-9e09-f85b1acf2b8f
 # ╠═7d57840f-daad-43da-8486-a53653b483ec
+# ╟─03fd1384-957d-4060-85de-92680488ce4a
+# ╠═30ef48a2-987c-40c2-a888-e8d0259451e7
+# ╟─40e8557a-8478-466e-9db1-66437495fcd2
+# ╟─affedccc-ddc5-4572-993d-132208878e88
 # ╟─6a499bc8-760b-4f39-8eb9-7f19d33572b7
 # ╠═f52b6f5b-bf2a-458f-a9f5-ecd16e6ed790
 # ╟─8cc3293a-5118-4206-932c-487bcbe6f914
