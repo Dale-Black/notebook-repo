@@ -49,7 +49,7 @@ First, we load phantom data from a NIfTI formatted file.
 
 # ╔═╡ eda28346-cb70-4c53-8199-81532ae6fc04
 begin
-	const DATA_DIR = "/Users/daleblack/Desktop/BrainDancerProject/data"
+	const DATA_DIR = joinpath(dirname(pwd()), "data")
 	phantom_ts = niread(joinpath(DATA_DIR, "BFC_time_series.nii"));
 	sz = size(phantom_ts)
 end
