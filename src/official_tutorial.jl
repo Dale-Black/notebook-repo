@@ -21,13 +21,15 @@ begin
 	Pkg.activate(mktempdir())
 	Pkg.instantiate()
 	Pkg.add(url="https://github.com/hstrey/BDTools.jl")
-	Pkg.add(["Plots", "NIfTI", "DelimitedFiles", "PlutoUI"])
+	Pkg.add(["Plots", "NIfTI", "DelimitedFiles", "PlutoUI", "CSV", "DataFrames"])
 	
 	using BDTools
 	using Plots
 	using NIfTI
 	using DelimitedFiles
 	using PlutoUI
+	using CSV
+	using DataFrames
 end
 
 # ╔═╡ e4906e8d-ab33-4f52-9a50-b4a370da62b1
@@ -60,7 +62,10 @@ Next, we load rotation angles from rotation data, and slice motion information.
 """
 
 # ╔═╡ fd8e9d78-a118-47fd-9e09-f85b1acf2b8f
-angles, firstrotidx = BDTools.getangles(joinpath(DATA_DIR,  "log.csv"))
+angles, firstrotidx = BDTools.getangles(joinpath(DATA_DIR, "log104.csv"))
+
+# ╔═╡ eb81bdf8-4e71-4dc3-8699-4fbc84a9220d
+CSV.read(joinpath(DATA_DIR, "log104.csv"), DataFrame)
 
 # ╔═╡ 7d57840f-daad-43da-8486-a53653b483ec
 sliceinfo, _ = readdlm(joinpath(DATA_DIR, "slices.csv"), ',', Int, header=true)
@@ -185,6 +190,7 @@ end
 # ╠═eda28346-cb70-4c53-8199-81532ae6fc04
 # ╟─0066b927-8c3e-4d47-90d1-08a10b9bc0e0
 # ╠═fd8e9d78-a118-47fd-9e09-f85b1acf2b8f
+# ╠═eb81bdf8-4e71-4dc3-8699-4fbc84a9220d
 # ╠═7d57840f-daad-43da-8486-a53653b483ec
 # ╟─03fd1384-957d-4060-85de-92680488ce4a
 # ╠═30ef48a2-987c-40c2-a888-e8d0259451e7
