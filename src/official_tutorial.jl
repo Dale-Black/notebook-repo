@@ -62,7 +62,7 @@ Next, we load rotation angles from rotation data, and slice motion information.
 """
 
 # ╔═╡ fd8e9d78-a118-47fd-9e09-f85b1acf2b8f
-angles, firstrotidx = BDTools.getangles(joinpath(DATA_DIR, "log104.csv"))
+# angles, firstrotidx = BDTools.getangles(joinpath(DATA_DIR, "log104.csv"))
 
 # ╔═╡ eb81bdf8-4e71-4dc3-8699-4fbc84a9220d
 CSV.read(joinpath(DATA_DIR, "log104.csv"), DataFrame)
