@@ -15,25 +15,41 @@ macro bind(def, element)
 end
 
 # ╔═╡ e2034fb2-e9d5-11ed-2172-291f085ed500
-using PlutoUI, CairoMakie
+using PlutoUI, CairoMakie, FileIO
 
-# ╔═╡ 1a0f3c8d-0a21-45e3-81dd-c37b7b442f4c
-arr = rand(100, 100, 10);
+# ╔═╡ 9acb7e7d-0a2f-4720-b339-4d87ecdd622f
+md"""
+#### Upload Image
+Ensure file is in an acceptable image format (.png, .jpeg, .bpm, etc)
 
-# ╔═╡ 96c46c28-2c85-43f7-be68-1d08883a79ef
-@bind a PlutoUI.Slider(axes(arr, 3); show_value=true)
+Upload Image: $(@bind arr_file FilePicker())
+"""
+
+# ╔═╡ f05b18a6-d52a-4af1-b815-a3a52c409a20
+if arr_file != nothing
+	temp_file_path = joinpath(tempdir(), arr_file["name"])
+	open(temp_file_path, "w") do f
+		write(f, arr_file["data"])
+	end
+	global arr = load(temp_file_path)
+	rm(temp_file_path)
+end
 
 # ╔═╡ 66029445-cf02-4b5c-a226-8aaa3462a4d3
-heatmap(arr[:, :, a])
+if arr_file != nothing
+	heatmap(arr)
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
 CairoMakie = "~0.10.4"
+FileIO = "~1.16.1"
 PlutoUI = "~0.7.51"
 """
 
@@ -43,7 +59,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.5"
 manifest_format = "2.0"
-project_hash = "f725ebd11304923beda9f75502db786d1a6ea273"
+project_hash = "310734d292b50a456757d116bf6f532140196080"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]
@@ -1349,8 +1365,8 @@ version = "3.5.0+0"
 
 # ╔═╡ Cell order:
 # ╠═e2034fb2-e9d5-11ed-2172-291f085ed500
-# ╠═1a0f3c8d-0a21-45e3-81dd-c37b7b442f4c
-# ╟─96c46c28-2c85-43f7-be68-1d08883a79ef
+# ╟─9acb7e7d-0a2f-4720-b339-4d87ecdd622f
+# ╠═f05b18a6-d52a-4af1-b815-a3a52c409a20
 # ╠═66029445-cf02-4b5c-a226-8aaa3462a4d3
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
