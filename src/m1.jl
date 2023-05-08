@@ -19,13 +19,12 @@ end
 begin
 	using Pkg
 	Pkg.activate(mktempdir())
+	Pkg.add(url="https://github.com/hstrey/BDTools.jl")
 	Pkg.add("CairoMakie")
 	Pkg.add("NIfTI")
 	Pkg.add("PlutoUI")
 	Pkg.add("CSV")
 	Pkg.add("DataFrames")
-	Pkg.add("UUIDs")
-	Pkg.add(url="https://github.com/hstrey/BDTools.jl")
 
 	using BDTools
 	using CairoMakie
@@ -33,7 +32,6 @@ begin
 	using NIfTI
 	using CSV
 	using DataFrames
-	using UUIDs
 end
 
 # ╔═╡ e7a428ce-0489-43c3-8c5a-bae818f0ca03
@@ -50,13 +48,15 @@ function upload_files(logs, acqs, phtm)
 	return PlutoUI.combine() do Child
 		
 		inputs = [
-			md""" $(logs): $(@bind log_file FilePicker())""",
-			md""" $(acqs): $(@bind acq_file FilePicker())""",
-			md""" $(phtm): Upload Phantom Scan: $(@bind nifti_file FilePicker())"""
+			md""" $(logs): $(@bind log_file TextField(60; default="https://www.dropbox.com/s/y2hyz2devw30s5x/log104.csv?dl=0"))""",
+			md""" $(acqs): $(@bind acq_file TextField(60; default="https://www.dropbox.com/s/qu75ggnbc2rsji5/acq_times_104.csv?dl=0"))""",
+			md""" $(phtm): $(@bind nifti_file TextField(60 ; default="https://www.dropbox.com/s/hikpi7t89mwbb4w/104.nii?dl=0"))"""
 		]
 		
 		md"""
 		#### Upload Files
+		Provide URLs or file paths to the necessary files. If running locally, file paths are expected. If running on the web, provide URL links. We recommend DropBox, as Google Drive will likely not work.
+		
 		Ensure log and acquisition files are in `.csv` format & phantom file is in `.nii` or `.nii.gz` format. Then click submit
 		$(inputs)
 		"""
@@ -64,24 +64,16 @@ function upload_files(logs, acqs, phtm)
 end
 
 # ╔═╡ d2e0accd-2395-4115-8842-e9176a0a132e
-confirm(upload_files("Upload Logs: ", "Upload Acquisition Times: ", "Upload Phantom Scan: "))
-
-# ╔═╡ 835f1748-0940-4a39-abb6-afa6ef8c4b90
-files_ready = (log_file != nothing) && (acq_file != nothing) && (nifti_file != nothing)
+confirm(upload_files("Upload Log File: ", "Upload Acquisition Times: ", "Upload Phantom Scan: "))
 
 # ╔═╡ 19b12720-4bd9-4790-84d0-9cf660d8ed70
-if files_ready
-	df_log = CSV.read(log_file["data"], DataFrame)
+begin
+	df_log = CSV.read(download(log_file), DataFrame)
 	
-	df_acq = CSV.read(acq_file["data"], DataFrame)
-	
-	temp_file_path = joinpath(tempdir(), "temp_" * string(uuid4()) * ".nii")
-	open(temp_file_path, "w") do f
-		write(f, nifti_file["data"])
-	end
-	global phantom = niread(temp_file_path)
-	rm(temp_file_path)
-end
+	df_acq = CSV.read(download(acq_file), DataFrame)
+		
+	phantom = niread(download(nifti_file))
+end;
 
 # ╔═╡ 7f2148e2-8649-4fb6-a50b-3dc54bca7505
 md"""
@@ -111,26 +103,20 @@ function good_slice_info(good_slices_first, good_slices_last)
 end
 
 # ╔═╡ 8eb754de-37b7-45fb-a7fc-c14c11e0216f
-if files_ready
-	@bind g_slices confirm(good_slice_info("First good slice: ", "Last good slice: "))
-end
+@bind g_slices confirm(good_slice_info("First good slice: ", "Last good slice: "))
 
 # ╔═╡ 7eacbaef-eae0-426a-be36-9c00a3b09d1b
-good_slices_files_ready = files_ready && (g_slices[1] != "" || g_slices[2] != "" )
+good_slices_files_ready = g_slices[1] != "" || g_slices[2] != "" 
 
 # ╔═╡ 49557d91-e4de-486b-99ed-3d564c7b7960
-if files_ready
-	@bind a_slider PlutoUI.Slider(axes(phantom, 3), ; default=8, show_value=true)
-end
+@bind a_slider PlutoUI.Slider(axes(phantom, 3), ; default=8, show_value=true)
 
 # ╔═╡ 04c7cf73-fa75-45e1-aafe-4ca658706289
 let
-	if files_ready
-		f = Figure()
-		ax = CairoMakie.Axis(f[1, 1])
-		heatmap!(phantom[:, :, a_slider, 1], colormap=:grays)
-		f
-	end
+	f = Figure()
+	ax = CairoMakie.Axis(f[1, 1])
+	heatmap!(phantom[:, :, a_slider, 1], colormap=:grays)
+	f
 end
 
 # ╔═╡ f11be125-facc-44ff-8d00-8cd748d6d110
@@ -161,28 +147,22 @@ function static_slice_info(good_slices_first, good_slices_last)
 end
 
 # ╔═╡ 877c4ec3-5c00-496a-b4e0-d09fc46fd207
-if files_ready
-	@bind static_ranges confirm(static_slice_info("Starting static slice: ", "Ending static slice: "))
-end
+@bind static_ranges confirm(static_slice_info("Starting static slice: ", "Ending static slice: "))
 
 # ╔═╡ 1d1fa36d-774b-43a8-9e4e-acc013ae8efe
-if files_ready
-	@bind b_slider PlutoUI.Slider(axes(phantom, 4), ; default=div(size(phantom, 4), 2), show_value=true)
-end
+@bind b_slider PlutoUI.Slider(axes(phantom, 4), ; default=div(size(phantom, 4), 2), show_value=true)
 
 # ╔═╡ 32292190-1124-4087-b728-8f998e3c3814
 let
-	if files_ready
-		half_slice = good_slices[div(length(good_slices), 2)]
-		f = Figure()
-		ax = CairoMakie.Axis(f[1, 1])
-		heatmap!(phantom[:, :, half_slice, b_slider], colormap=:grays)
-		f
-	end
+	half_slice = div(last(axes(phantom, 3)), 2)
+	f = Figure()
+	ax = CairoMakie.Axis(f[1, 1])
+	heatmap!(phantom[:, :, half_slice, b_slider], colormap=:grays)
+	f
 end
 
 # ╔═╡ 15681a0d-a217-42af-be91-6edeff37dfaa
-if files_ready
+begin
 	num_static_range_low = parse(Int, static_ranges[1])
 	num_static_range_high = parse(Int, static_ranges[2])
 	static_range = num_static_range_low:num_static_range_high
@@ -306,9 +286,8 @@ md"""
 # ╠═866b498e-52cc-461a-90dc-bfd6d53dd80d
 # ╠═e7a428ce-0489-43c3-8c5a-bae818f0ca03
 # ╟─dc6717ba-25fb-4f7d-933a-18dc69fea34d
-# ╟─d2e0accd-2395-4115-8842-e9176a0a132e
 # ╟─d90a11ce-52fd-48e4-9cb1-755bc2b29e51
-# ╠═835f1748-0940-4a39-abb6-afa6ef8c4b90
+# ╟─d2e0accd-2395-4115-8842-e9176a0a132e
 # ╠═19b12720-4bd9-4790-84d0-9cf660d8ed70
 # ╟─7f2148e2-8649-4fb6-a50b-3dc54bca7505
 # ╟─8eb754de-37b7-45fb-a7fc-c14c11e0216f
