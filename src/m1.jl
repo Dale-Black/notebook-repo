@@ -115,13 +115,13 @@ end
 good_slices_files_ready = g_slices[1] != "" && g_slices[2] != "" 
 
 # ╔═╡ c16e0ada-7096-4bda-9b0c-8e11aa2d4760
-phantom_raw = phantom.raw;
+phantom_raw_g_slices = phantom.raw[:, :, :, 1];
 
 # ╔═╡ 49557d91-e4de-486b-99ed-3d564c7b7960
-@bind good_slices_slider PlutoUI.Slider(axes(phantom_raw, 3); default=div(size(phantom_raw, 3), 2), show_value=true)
+@bind good_slices_slider PlutoUI.Slider(axes(phantom, 3); default=div(size(phantom, 3), 2), show_value=true)
 
 # ╔═╡ 04c7cf73-fa75-45e1-aafe-4ca658706289
-heatmap(phantom_raw[:, :, good_slices_slider, 1], colormap=:grays)
+heatmap(phantom_raw_g_slices[:, :, good_slices_slider], colormap=:grays)
 
 # ╔═╡ f11be125-facc-44ff-8d00-8cd748d6d110
 if good_slices_files_ready
@@ -153,11 +153,14 @@ end
 # ╔═╡ 877c4ec3-5c00-496a-b4e0-d09fc46fd207
 @bind static_ranges confirm(static_slice_info("Starting static slice: ", "Ending static slice: "))
 
+# ╔═╡ 5db5565e-8f33-4f47-80b5-a66937128d5d
+phantom_raw_s_slices = phantom.raw[:, :, div(size(phantom, 3), 2), :];
+
 # ╔═╡ 1d1fa36d-774b-43a8-9e4e-acc013ae8efe
-@bind b_slider PlutoUI.Slider(axes(phantom_raw, 4), ; default=div(size(phantom_raw, 4), 2), show_value=true)
+@bind b_slider PlutoUI.Slider(axes(phantom, 4); default=div(size(phantom, 4), 2), show_value=true)
 
 # ╔═╡ 32292190-1124-4087-b728-8f998e3c3814
-heatmap(phantom_raw[:, :, div(size(phantom_raw, 3), 2), b_slider], colormap=:grays)
+heatmap(phantom_raw_s_slices[:, :, b_slider], colormap=:grays)
 
 # ╔═╡ 15681a0d-a217-42af-be91-6edeff37dfaa
 begin
@@ -297,6 +300,7 @@ md"""
 # ╟─f11be125-facc-44ff-8d00-8cd748d6d110
 # ╟─877c4ec3-5c00-496a-b4e0-d09fc46fd207
 # ╟─8724296c-6118-4c0f-bea4-3173222a40cf
+# ╠═5db5565e-8f33-4f47-80b5-a66937128d5d
 # ╟─1d1fa36d-774b-43a8-9e4e-acc013ae8efe
 # ╟─32292190-1124-4087-b728-8f998e3c3814
 # ╠═15681a0d-a217-42af-be91-6edeff37dfaa
