@@ -81,9 +81,6 @@ catch
 	global phantom = niread(nifti_file)
 end;
 
-# ╔═╡ 7ea95b55-b2eb-409e-adff-6b83aa09046b
-df_acq
-
 # ╔═╡ 7f2148e2-8649-4fb6-a50b-3dc54bca7505
 md"""
 # Identify Good Slices
@@ -118,10 +115,10 @@ end
 good_slices_files_ready = g_slices[1] != "" && g_slices[2] != "" 
 
 # ╔═╡ 49557d91-e4de-486b-99ed-3d564c7b7960
-@bind a_slider PlutoUI.Slider(axes(phantom, 3), ; default=8, show_value=true)
+@bind good_slices_slider PlutoUI.Slider(axes(phantom, 3); show_value=true)
 
 # ╔═╡ 04c7cf73-fa75-45e1-aafe-4ca658706289
-heatmap(phantom[:, :, a_slider, 1], colormap=:grays)
+heatmap(phantom.raw[:, :, good_slices_slider, 1], colormap=:grays)
 
 # ╔═╡ f11be125-facc-44ff-8d00-8cd748d6d110
 if good_slices_files_ready
@@ -157,7 +154,7 @@ end
 @bind b_slider PlutoUI.Slider(axes(phantom, 4), ; default=div(size(phantom, 4), 2), show_value=true)
 
 # ╔═╡ 32292190-1124-4087-b728-8f998e3c3814
-heatmap(phantom[:, :, div(last(axes(phantom, 3)), 2), b_slider], colormap=:grays)
+heatmap(phantom.raw[:, :, div(last(axes(phantom, 3)), 2), b_slider], colormap=:grays)
 
 # ╔═╡ 15681a0d-a217-42af-be91-6edeff37dfaa
 begin
@@ -237,7 +234,7 @@ md"""
 
 # ╔═╡ 056f3868-9a21-4c68-9f51-a9ed2d662e46
 if good_slices_files_ready
-	@bind c_slider2 PlutoUI.Slider(good_slices, ; default=8, show_value=true)
+	@bind c_slider2 PlutoUI.Slider(good_slices; show_value=true)
 end
 
 # ╔═╡ 13b34063-4fea-4044-9648-7d72fd90ed2d
@@ -287,7 +284,6 @@ md"""
 # ╟─d90a11ce-52fd-48e4-9cb1-755bc2b29e51
 # ╟─d2e0accd-2395-4115-8842-e9176a0a132e
 # ╠═19b12720-4bd9-4790-84d0-9cf660d8ed70
-# ╠═7ea95b55-b2eb-409e-adff-6b83aa09046b
 # ╟─7f2148e2-8649-4fb6-a50b-3dc54bca7505
 # ╟─8eb754de-37b7-45fb-a7fc-c14c11e0216f
 # ╠═7eacbaef-eae0-426a-be36-9c00a3b09d1b
