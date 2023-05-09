@@ -67,13 +67,22 @@ end
 confirm(upload_files("Upload Log File: ", "Upload Acquisition Times: ", "Upload Phantom Scan: "))
 
 # ╔═╡ 19b12720-4bd9-4790-84d0-9cf660d8ed70
-begin
-	df_log = CSV.read(download(log_file), DataFrame)
+try
+	global df_log = CSV.read(download(log_file), DataFrame)
 	
-	df_acq = CSV.read(download(acq_file), DataFrame)
+	global df_acq = CSV.read(download(acq_file), DataFrame)
 		
-	phantom = niread(download(nifti_file))
+	global phantom = niread(download(nifti_file))
+catch
+	global df_log = CSV.read(log_file, DataFrame)
+	
+	global df_acq = CSV.read(acq_file, DataFrame)
+		
+	global phantom = niread(nifti_file)
 end;
+
+# ╔═╡ 7ea95b55-b2eb-409e-adff-6b83aa09046b
+df_acq
 
 # ╔═╡ 7f2148e2-8649-4fb6-a50b-3dc54bca7505
 md"""
@@ -106,18 +115,13 @@ end
 @bind g_slices confirm(good_slice_info("First good slice: ", "Last good slice: "))
 
 # ╔═╡ 7eacbaef-eae0-426a-be36-9c00a3b09d1b
-good_slices_files_ready = g_slices[1] != "" || g_slices[2] != "" 
+good_slices_files_ready = g_slices[1] != "" && g_slices[2] != "" 
 
 # ╔═╡ 49557d91-e4de-486b-99ed-3d564c7b7960
 @bind a_slider PlutoUI.Slider(axes(phantom, 3), ; default=8, show_value=true)
 
 # ╔═╡ 04c7cf73-fa75-45e1-aafe-4ca658706289
-let
-	f = Figure()
-	ax = CairoMakie.Axis(f[1, 1])
-	heatmap!(phantom[:, :, a_slider, 1], colormap=:grays)
-	f
-end
+heatmap(phantom[:, :, a_slider, 1], colormap=:grays)
 
 # ╔═╡ f11be125-facc-44ff-8d00-8cd748d6d110
 if good_slices_files_ready
@@ -153,13 +157,7 @@ end
 @bind b_slider PlutoUI.Slider(axes(phantom, 4), ; default=div(size(phantom, 4), 2), show_value=true)
 
 # ╔═╡ 32292190-1124-4087-b728-8f998e3c3814
-let
-	half_slice = div(last(axes(phantom, 3)), 2)
-	f = Figure()
-	ax = CairoMakie.Axis(f[1, 1])
-	heatmap!(phantom[:, :, half_slice, b_slider], colormap=:grays)
-	f
-end
+heatmap(phantom[:, :, div(last(axes(phantom, 3)), 2), b_slider], colormap=:grays)
 
 # ╔═╡ 15681a0d-a217-42af-be91-6edeff37dfaa
 begin
@@ -289,6 +287,7 @@ md"""
 # ╟─d90a11ce-52fd-48e4-9cb1-755bc2b29e51
 # ╟─d2e0accd-2395-4115-8842-e9176a0a132e
 # ╠═19b12720-4bd9-4790-84d0-9cf660d8ed70
+# ╠═7ea95b55-b2eb-409e-adff-6b83aa09046b
 # ╟─7f2148e2-8649-4fb6-a50b-3dc54bca7505
 # ╟─8eb754de-37b7-45fb-a7fc-c14c11e0216f
 # ╠═7eacbaef-eae0-426a-be36-9c00a3b09d1b
