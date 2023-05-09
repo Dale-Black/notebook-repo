@@ -86,6 +86,12 @@ md"""
 # Identify Good Slices
 """
 
+# ╔═╡ 2c96b821-994f-4662-ad4c-a7dc916a9b87
+begin
+	offset1 = div(size(phantom, 3), 2) - 5
+	offset2 = div(size(phantom, 3), 2) + 5
+end;
+
 # ╔═╡ 6a8117e0-e450-46d7-897f-0503d71f06af
 function good_slice_info(good_slices_first, good_slices_last)
 	
@@ -93,10 +99,10 @@ function good_slice_info(good_slices_first, good_slices_last)
 		
 		inputs = [
 			md""" $(good_slices_first): $(
-				Child(TextField())
+				Child(TextField(default=string(offset1)))
 			)""",
 			md""" $(good_slices_last): $(
-				Child(TextField())
+				Child(TextField(default=string(offset2)))
 			)"""
 		]
 		
@@ -110,6 +116,20 @@ end
 
 # ╔═╡ 8eb754de-37b7-45fb-a7fc-c14c11e0216f
 @bind g_slices confirm(good_slice_info("First good slice: ", "Last good slice: "))
+
+# ╔═╡ 27088f31-5adc-4f70-a6c8-6745bc8d81e0
+if offset1 < first(axes(phantom, 3))
+	gslice1 = first(axes(phantom, 3))
+else
+	gslice1 = offset1
+end;
+
+# ╔═╡ 434a7d2f-a2c9-4a34-88ef-abc7f3cf80ef
+if offset2 > last(axes(phantom, 3))
+	gslice2 = first(axes(phantom, 3))
+else
+	gslice2 = offset2
+end;
 
 # ╔═╡ 7eacbaef-eae0-426a-be36-9c00a3b09d1b
 good_slices_files_ready = g_slices[1] != "" && g_slices[2] != "" 
@@ -291,9 +311,12 @@ md"""
 # ╟─d2e0accd-2395-4115-8842-e9176a0a132e
 # ╠═19b12720-4bd9-4790-84d0-9cf660d8ed70
 # ╟─7f2148e2-8649-4fb6-a50b-3dc54bca7505
-# ╟─8eb754de-37b7-45fb-a7fc-c14c11e0216f
-# ╠═7eacbaef-eae0-426a-be36-9c00a3b09d1b
 # ╟─6a8117e0-e450-46d7-897f-0503d71f06af
+# ╟─8eb754de-37b7-45fb-a7fc-c14c11e0216f
+# ╠═2c96b821-994f-4662-ad4c-a7dc916a9b87
+# ╠═27088f31-5adc-4f70-a6c8-6745bc8d81e0
+# ╠═434a7d2f-a2c9-4a34-88ef-abc7f3cf80ef
+# ╠═7eacbaef-eae0-426a-be36-9c00a3b09d1b
 # ╠═c16e0ada-7096-4bda-9b0c-8e11aa2d4760
 # ╟─49557d91-e4de-486b-99ed-3d564c7b7960
 # ╟─04c7cf73-fa75-45e1-aafe-4ca658706289
