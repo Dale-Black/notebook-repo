@@ -114,11 +114,14 @@ end
 # ╔═╡ 7eacbaef-eae0-426a-be36-9c00a3b09d1b
 good_slices_files_ready = g_slices[1] != "" && g_slices[2] != "" 
 
+# ╔═╡ c16e0ada-7096-4bda-9b0c-8e11aa2d4760
+phantom_raw = phantom.raw;
+
 # ╔═╡ 49557d91-e4de-486b-99ed-3d564c7b7960
-@bind good_slices_slider PlutoUI.Slider(axes(phantom, 3); show_value=true)
+@bind good_slices_slider PlutoUI.Slider(axes(phantom_raw, 3); default=div(size(phantom_raw, 3), 2), show_value=true)
 
 # ╔═╡ 04c7cf73-fa75-45e1-aafe-4ca658706289
-heatmap(phantom.raw[:, :, good_slices_slider, 1], colormap=:grays)
+heatmap(phantom_raw[:, :, good_slices_slider, 1], colormap=:grays)
 
 # ╔═╡ f11be125-facc-44ff-8d00-8cd748d6d110
 if good_slices_files_ready
@@ -151,10 +154,10 @@ end
 @bind static_ranges confirm(static_slice_info("Starting static slice: ", "Ending static slice: "))
 
 # ╔═╡ 1d1fa36d-774b-43a8-9e4e-acc013ae8efe
-@bind b_slider PlutoUI.Slider(axes(phantom, 4), ; default=div(size(phantom, 4), 2), show_value=true)
+@bind b_slider PlutoUI.Slider(axes(phantom_raw, 4), ; default=div(size(phantom_raw, 4), 2), show_value=true)
 
 # ╔═╡ 32292190-1124-4087-b728-8f998e3c3814
-heatmap(phantom.raw[:, :, div(last(axes(phantom, 3)), 2), b_slider], colormap=:grays)
+heatmap(phantom_raw[:, :, div(size(phantom_raw, 3), 2), b_slider], colormap=:grays)
 
 # ╔═╡ 15681a0d-a217-42af-be91-6edeff37dfaa
 begin
@@ -288,6 +291,7 @@ md"""
 # ╟─8eb754de-37b7-45fb-a7fc-c14c11e0216f
 # ╠═7eacbaef-eae0-426a-be36-9c00a3b09d1b
 # ╟─6a8117e0-e450-46d7-897f-0503d71f06af
+# ╠═c16e0ada-7096-4bda-9b0c-8e11aa2d4760
 # ╟─49557d91-e4de-486b-99ed-3d564c7b7960
 # ╟─04c7cf73-fa75-45e1-aafe-4ca658706289
 # ╟─f11be125-facc-44ff-8d00-8cd748d6d110
