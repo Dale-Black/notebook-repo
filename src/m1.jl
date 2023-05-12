@@ -19,6 +19,8 @@ end
 begin
 	using Pkg
 	Pkg.activate(mktempdir())
+	Pkg.add("CondaPkg")
+	Pkg.add("PythonCall")
 	Pkg.add(url="https://github.com/hstrey/BDTools.jl")
 	Pkg.add("CairoMakie")
 	Pkg.add("NIfTI")
@@ -26,13 +28,19 @@ begin
 	Pkg.add("CSV")
 	Pkg.add("DataFrames")
 
+	using CondaPkg; CondaPkg.add("SimpleITK")
+	using PythonCall
 	using BDTools
 	using CairoMakie
 	using PlutoUI
 	using NIfTI
 	using CSV
 	using DataFrames
+	using Statistics
 end
+
+# ╔═╡ 90b6279b-7595-43de-b3f7-10ffdbeabf58
+sitk = pyimport("SimpleITK")
 
 # ╔═╡ e7a428ce-0489-43c3-8c5a-bae818f0ca03
 TableOfContents()
@@ -81,16 +89,19 @@ catch
 	global phantom = niread(nifti_file)
 end;
 
+# ╔═╡ 3baf736e-6b98-4703-baf8-ecf856b515e2
+size(phantom)[2:end]
+
+# ╔═╡ b0e58a0a-c6a7-4e4d-8a14-efbfbf7251e9
+phantom_header = phantom.header
+
+# ╔═╡ 3dcddb92-6277-46d2-9e34-3863f0a60731
+vsize = voxel_size(phantom.header) # mm
+
 # ╔═╡ 7f2148e2-8649-4fb6-a50b-3dc54bca7505
 md"""
 # Identify Good Slices
 """
-
-# ╔═╡ 2c96b821-994f-4662-ad4c-a7dc916a9b87
-begin
-	offset1 = div(size(phantom, 3), 2) - 5
-	offset2 = div(size(phantom, 3), 2) + 5
-end;
 
 # ╔═╡ 6a8117e0-e450-46d7-897f-0503d71f06af
 function good_slice_info(good_slices_first, good_slices_last)
@@ -99,10 +110,10 @@ function good_slice_info(good_slices_first, good_slices_last)
 		
 		inputs = [
 			md""" $(good_slices_first): $(
-				Child(TextField(default=string(offset1)))
+				Child(TextField(default=string(27)))
 			)""",
 			md""" $(good_slices_last): $(
-				Child(TextField(default=string(offset2)))
+				Child(TextField(default=string(44)))
 			)"""
 		]
 		
@@ -117,31 +128,19 @@ end
 # ╔═╡ 8eb754de-37b7-45fb-a7fc-c14c11e0216f
 @bind g_slices confirm(good_slice_info("First good slice: ", "Last good slice: "))
 
-# ╔═╡ 27088f31-5adc-4f70-a6c8-6745bc8d81e0
-if offset1 < first(axes(phantom, 3))
-	gslice1 = first(axes(phantom, 3))
-else
-	gslice1 = offset1
-end;
-
-# ╔═╡ 434a7d2f-a2c9-4a34-88ef-abc7f3cf80ef
-if offset2 > last(axes(phantom, 3))
-	gslice2 = first(axes(phantom, 3))
-else
-	gslice2 = offset2
-end;
-
 # ╔═╡ 7eacbaef-eae0-426a-be36-9c00a3b09d1b
 good_slices_files_ready = g_slices[1] != "" && g_slices[2] != "" 
-
-# ╔═╡ c16e0ada-7096-4bda-9b0c-8e11aa2d4760
-phantom_raw_g_slices = phantom.raw[:, :, :, 1];
 
 # ╔═╡ 49557d91-e4de-486b-99ed-3d564c7b7960
 @bind good_slices_slider PlutoUI.Slider(axes(phantom, 3); default=div(size(phantom, 3), 2), show_value=true)
 
 # ╔═╡ 04c7cf73-fa75-45e1-aafe-4ca658706289
-heatmap(phantom_raw_g_slices[:, :, good_slices_slider], colormap=:grays)
+heatmap(phantom.raw[:, :, good_slices_slider, 1], colormap=:grays)
+
+# ╔═╡ 4a485292-f875-44c4-b940-8f2714f6d26f
+if good_slices_files_ready
+	good_slices_range = parse(Int, first(g_slices)):parse(Int, last(g_slices))
+end;
 
 # ╔═╡ f11be125-facc-44ff-8d00-8cd748d6d110
 if good_slices_files_ready
@@ -173,14 +172,11 @@ end
 # ╔═╡ 877c4ec3-5c00-496a-b4e0-d09fc46fd207
 @bind static_ranges confirm(static_slice_info("Starting static slice: ", "Ending static slice: "))
 
-# ╔═╡ 5db5565e-8f33-4f47-80b5-a66937128d5d
-phantom_raw_s_slices = phantom.raw[:, :, div(size(phantom, 3), 2), :];
-
 # ╔═╡ 1d1fa36d-774b-43a8-9e4e-acc013ae8efe
 @bind b_slider PlutoUI.Slider(axes(phantom, 4); default=div(size(phantom, 4), 2), show_value=true)
 
 # ╔═╡ 32292190-1124-4087-b728-8f998e3c3814
-heatmap(phantom_raw_s_slices[:, :, b_slider], colormap=:grays)
+heatmap(phantom[:, :, div(size(phantom, 3), 2), b_slider], colormap=:grays)
 
 # ╔═╡ 15681a0d-a217-42af-be91-6edeff37dfaa
 begin
@@ -189,39 +185,39 @@ begin
 	static_range = num_static_range_low:num_static_range_high
 end;
 
-# ╔═╡ c752398a-39ac-4dc3-a7db-bd19ee357075
+# ╔═╡ 886c9748-b423-4d68-acb4-2b32c65ebc1d
 if good_slices_files_ready
-	good_slices_matrix = Int.(hcat(zeros(size(phantom, 3)), collect(axes(phantom, 3))))
-	for i in good_slices
-		idx = findall(x -> x == i, good_slices_matrix[:, 2])
-		good_slices_matrix[idx..., 1] = 1
-	end
+	phantom_ok = phantom[:, :, good_slices_range, static_range]
+	phantom_ok = Float64.(convert(Array, phantom_ok))
 end;
+
+# ╔═╡ de4e1b7c-2a70-499d-a375-87c8aaca0ad3
+begin
+	max_motion = findmax(df_log[!,"Tmot"])[1]
+	slices_without_motion = df_acq[!,"Slice"][df_acq[!,"Time"] .> max_motion]
+	slices_ok = sort(
+		slices_without_motion[parse(Int, first(g_slices))-1 .<= slices_without_motion .<= parse(Int, last(g_slices))+1]
+	)
+	slices_wm = [x in slices_ok ? 1 : 0 for x in good_slices]
+	slices_df = DataFrame(Dict(:slice => good_slices, :no_motion => slices_wm))
+end
 
 # ╔═╡ d0c6dc6d-b85f-4f76-a478-02fcd9484344
 md"""
 # Calculate Average Static Phantom
 """
 
-# ╔═╡ 4a485292-f875-44c4-b940-8f2714f6d26f
-if good_slices_files_ready
-	good_slices_range = first(good_slices):last(good_slices)
-end;
-
-# ╔═╡ 886c9748-b423-4d68-acb4-2b32c65ebc1d
-if good_slices_files_ready
-	phantom_ok = phantom[:, :, good_slices_range, static_range]
-	phantom_ok = Float64.(convert(Array, phantom))
-end;
-
 # ╔═╡ d75e495c-bf4e-4608-bd7f-357d3fe1023b
 if good_slices_files_ready
-	sph = staticphantom(phantom_ok, good_slices_matrix; staticslices=static_range)
+	sph = staticphantom(phantom_ok, Matrix(slices_df); staticslices=static_range)
 end;
 
-# ╔═╡ ad5f052a-8421-494a-96cd-2e5ad7ab8b2b
+# ╔═╡ db78c6f2-5afe-4d12-b39f-f6b4286f2d17
+phantom_header.dim = (length(size(sph.data)), size(sph.data)..., 1, 1, 1, 1)
+
+# ╔═╡ 35e1fcca-f1e0-4b33-82c7-e0c1325464d0
 if good_slices_files_ready
-	@bind c_slider PlutoUI.Slider(good_slices, ; default=good_slices[div(length(good_slices), 2)], show_value=true)
+	@bind c_slider PlutoUI.Slider(axes(sph.data, 3) ; default=div(size(sph.data, 3), 2), show_value=true)
 end
 
 # ╔═╡ fc87815b-54d1-4f69-ac8d-b0fbeab7f53d
@@ -242,7 +238,7 @@ let
 			f[1, 1],
 			title="Raw 4D fMRI"
 		)
-		heatmap!(phantom[:, :, c_slider, d_slider], colormap=:grays)
+		heatmap!(phantom[:, :, slices_df[c_slider, 2], d_slider], colormap=:grays)
 	
 		ax = CairoMakie.Axis(
 			f[1, 2],
@@ -253,6 +249,17 @@ let
 	end
 end
 
+# ╔═╡ 4de55168-94c0-400e-a072-feb34a07fe2b
+avg_static_phantom = sph.data;
+
+# ╔═╡ a649bf25-f3e4-44b4-bb3e-266a456f2f21
+begin
+	tempdir = mktempdir()
+	
+	avg_static_phantom_path = joinpath(tempdir, "image.nii")
+	niwrite(avg_static_phantom_path, NIVolume(phantom_header, avg_static_phantom))
+end
+
 # ╔═╡ 5e364415-8ab9-4f8d-a775-03d45748b249
 md"""
 # Create Mask for B-field Correction
@@ -260,7 +267,7 @@ md"""
 
 # ╔═╡ 056f3868-9a21-4c68-9f51-a9ed2d662e46
 if good_slices_files_ready
-	@bind c_slider2 PlutoUI.Slider(good_slices; show_value=true)
+	@bind c_slider2 PlutoUI.Slider(axes(sph.data, 3); show_value=true)
 end
 
 # ╔═╡ 13b34063-4fea-4044-9648-7d72fd90ed2d
@@ -293,52 +300,185 @@ let
 	end
 end
 
+# ╔═╡ cb3c7d65-dcdf-48c9-a1fa-56ba71b327e5
+begin
+	msk3D = zeros(Int, size(sph.data)[1:2]..., length(good_slices))
+	for i in axes(sph.data, 3)
+		msk3D[:, :, i] = BDTools.segment3(sph.data[:, :, i]).image_indexmap
+	end
+	msk3D = parent(msk3D)
+end;
+
+# ╔═╡ 4168038a-7257-4082-8243-525175d12be0
+begin
+	binary_msk3D = zeros(Int, size(msk3D))
+	idxs = findall(x -> x == 2 || x == 3, msk3D)
+	for i in idxs
+		binary_msk3D[i] = 1
+	end
+end;
+
+# ╔═╡ 51a6b51f-55fd-442c-a6a0-5d9be970d300
+begin
+	mask_path = joinpath(tempdir, "mask.nii")
+	niwrite(mask_path, NIVolume(phantom_header, binary_msk3D))
+end
+
+# ╔═╡ 692360cc-dcb0-456a-8234-f747ce371b1b
+# heatmap(binary_msk3D[:, :, 2], colormap=:grays)
+
 # ╔═╡ 659ec1a1-356c-4742-bd63-0ebaa3df5b96
 md"""
 # Run B-field Correction on Static Image
 """
+
+# ╔═╡ 79bfc734-f19d-4d5b-a585-ef02bf2b0144
+function bfield_correction(avg_phantom_path, mask_path; num_iterations, numberFittingLevels=4)
+	inputImage = sitk.ReadImage(avg_phantom_path, sitk.sitkFloat32)
+	image = inputImage
+	
+	maskImage = sitk.ReadImage(mask_path, sitk.sitkUInt8)
+	
+	corrector = sitk.N4BiasFieldCorrectionImageFilter()
+	
+	numberFittingLevels = pylist(numberFittingLevels)
+	
+	num_iterations = pylist(num_iterations)
+	corrector.SetMaximumNumberOfIterations(num_iterations)
+
+	corrected_image = corrector.Execute(image, maskImage)
+    log_bias_field = corrector.GetLogBiasFieldAsImage(inputImage)
+
+	tempdir = mktempdir()
+	corrected_image_path = joinpath(tempdir, "corrected_image.nii")
+	log_bias_field_path = joinpath(tempdir, "log_bias_field.nii")
+
+	sitk.WriteImage(corrected_image, corrected_image_path)
+	sitk.WriteImage(log_bias_field, log_bias_field_path)
+
+	return (
+		niread(avg_phantom_path),
+		niread(mask_path),
+		niread(log_bias_field_path),
+		niread(corrected_image_path)
+	)
+end
+
+# ╔═╡ bafa6302-6dbc-4b46-afc2-a414079a0472
+input_image, mask, bfield, corrected_image = bfield_correction(avg_static_phantom_path, mask_path; num_iterations=4);
+
+# ╔═╡ 958fc82b-454d-4f00-91c0-4c95bebe4117
+@bind bfield_slider PlutoUI.Slider(axes(bfield, 3); show_value=true)
+
+# ╔═╡ 87f3ccf9-4ee4-466e-a15c-f5000d6a3eca
+let
+	if good_slices_files_ready
+		f = Figure(resolution=(1000, 700))
+		ax = CairoMakie.Axis(
+			f[1, 1],
+			title="Average Static Phantom"
+		)
+		heatmap!(input_image[:, :, bfield_slider], colormap=:grays)
+	
+		ax = CairoMakie.Axis(
+			f[1, 2],
+			title="Corrected Average Static Phantom"
+		)
+		heatmap!(corrected_image[:, :, bfield_slider], colormap=:grays)
+		f
+	end
+end
+
+# ╔═╡ efb1f173-b7ef-4ce1-9d72-47fcda97da7d
+let
+	if good_slices_files_ready
+		f = Figure(resolution=(1000, 700))
+		ax = CairoMakie.Axis(
+			f[1, 1],
+			title="Difference"
+		)
+		heatmap!(corrected_image[:, :, bfield_slider] - input_image[:, :, bfield_slider])
+	
+		ax = CairoMakie.Axis(
+			f[1, 2],
+			title="B-Field"
+		)
+		heatmap!(bfield[:, :, bfield_slider], colormap=:grays)
+		f
+	end
+end
 
 # ╔═╡ 01455019-c0bd-43b4-9157-c757901e18dc
 md"""
 # Correct 4D Phantom w/ B-field
 """
 
+# ╔═╡ 304923f3-fbe0-4ef6-852b-fab8f49fd43d
+phantom_whole = phantom[:, :, good_slices_range, :];
+
+# ╔═╡ 3042e311-40fb-40a0-a4f2-d641dfb07809
+begin 
+	bfc_image = zeros(size(phantom_whole))
+	for i in axes(phantom_whole, 4)
+		for j in axes(phantom_whole, 3)
+			bfc_image[:,:,j,i] = phantom_whole[:, :, j, i] ./ bfield[:, :, j]
+		end
+	end
+end
+
+# ╔═╡ 5c7e141d-6a49-4341-a1a4-b3eefd6b5ea5
+bfc_image
+
 # ╔═╡ Cell order:
 # ╠═866b498e-52cc-461a-90dc-bfd6d53dd80d
+# ╠═90b6279b-7595-43de-b3f7-10ffdbeabf58
 # ╠═e7a428ce-0489-43c3-8c5a-bae818f0ca03
 # ╟─dc6717ba-25fb-4f7d-933a-18dc69fea34d
 # ╟─d90a11ce-52fd-48e4-9cb1-755bc2b29e51
 # ╟─d2e0accd-2395-4115-8842-e9176a0a132e
 # ╠═19b12720-4bd9-4790-84d0-9cf660d8ed70
+# ╠═3baf736e-6b98-4703-baf8-ecf856b515e2
+# ╠═b0e58a0a-c6a7-4e4d-8a14-efbfbf7251e9
+# ╠═3dcddb92-6277-46d2-9e34-3863f0a60731
 # ╟─7f2148e2-8649-4fb6-a50b-3dc54bca7505
 # ╟─6a8117e0-e450-46d7-897f-0503d71f06af
 # ╟─8eb754de-37b7-45fb-a7fc-c14c11e0216f
-# ╠═2c96b821-994f-4662-ad4c-a7dc916a9b87
-# ╠═27088f31-5adc-4f70-a6c8-6745bc8d81e0
-# ╠═434a7d2f-a2c9-4a34-88ef-abc7f3cf80ef
 # ╠═7eacbaef-eae0-426a-be36-9c00a3b09d1b
-# ╠═c16e0ada-7096-4bda-9b0c-8e11aa2d4760
 # ╟─49557d91-e4de-486b-99ed-3d564c7b7960
 # ╟─04c7cf73-fa75-45e1-aafe-4ca658706289
+# ╠═4a485292-f875-44c4-b940-8f2714f6d26f
 # ╟─f11be125-facc-44ff-8d00-8cd748d6d110
 # ╟─877c4ec3-5c00-496a-b4e0-d09fc46fd207
 # ╟─8724296c-6118-4c0f-bea4-3173222a40cf
-# ╠═5db5565e-8f33-4f47-80b5-a66937128d5d
 # ╟─1d1fa36d-774b-43a8-9e4e-acc013ae8efe
 # ╟─32292190-1124-4087-b728-8f998e3c3814
 # ╠═15681a0d-a217-42af-be91-6edeff37dfaa
-# ╠═c752398a-39ac-4dc3-a7db-bd19ee357075
-# ╟─d0c6dc6d-b85f-4f76-a478-02fcd9484344
-# ╠═4a485292-f875-44c4-b940-8f2714f6d26f
 # ╠═886c9748-b423-4d68-acb4-2b32c65ebc1d
+# ╠═de4e1b7c-2a70-499d-a375-87c8aaca0ad3
+# ╟─d0c6dc6d-b85f-4f76-a478-02fcd9484344
 # ╠═d75e495c-bf4e-4608-bd7f-357d3fe1023b
-# ╟─ad5f052a-8421-494a-96cd-2e5ad7ab8b2b
+# ╠═db78c6f2-5afe-4d12-b39f-f6b4286f2d17
+# ╟─35e1fcca-f1e0-4b33-82c7-e0c1325464d0
 # ╟─fc87815b-54d1-4f69-ac8d-b0fbeab7f53d
-# ╠═f57cb424-9dd2-4432-8485-034ded569f13
+# ╟─f57cb424-9dd2-4432-8485-034ded569f13
 # ╟─e570adef-e2d1-4080-86e8-4ac57ad8a6f0
+# ╠═4de55168-94c0-400e-a072-feb34a07fe2b
+# ╠═a649bf25-f3e4-44b4-bb3e-266a456f2f21
 # ╟─5e364415-8ab9-4f8d-a775-03d45748b249
 # ╟─056f3868-9a21-4c68-9f51-a9ed2d662e46
 # ╠═13b34063-4fea-4044-9648-7d72fd90ed2d
 # ╟─e512474b-a648-416a-a52f-19b0e52fbd17
+# ╠═cb3c7d65-dcdf-48c9-a1fa-56ba71b327e5
+# ╠═4168038a-7257-4082-8243-525175d12be0
+# ╠═51a6b51f-55fd-442c-a6a0-5d9be970d300
+# ╠═692360cc-dcb0-456a-8234-f747ce371b1b
 # ╟─659ec1a1-356c-4742-bd63-0ebaa3df5b96
+# ╠═79bfc734-f19d-4d5b-a585-ef02bf2b0144
+# ╠═bafa6302-6dbc-4b46-afc2-a414079a0472
+# ╟─958fc82b-454d-4f00-91c0-4c95bebe4117
+# ╟─87f3ccf9-4ee4-466e-a15c-f5000d6a3eca
+# ╟─efb1f173-b7ef-4ce1-9d72-47fcda97da7d
 # ╟─01455019-c0bd-43b4-9157-c757901e18dc
+# ╠═304923f3-fbe0-4ef6-852b-fab8f49fd43d
+# ╠═3042e311-40fb-40a0-a4f2-d641dfb07809
+# ╠═5c7e141d-6a49-4341-a1a4-b3eefd6b5ea5
