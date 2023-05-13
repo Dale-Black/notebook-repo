@@ -332,19 +332,19 @@ md"""
 # Run B-field Correction on Static Image
 """
 
+# ╔═╡ 4baad75d-01bc-4389-9cc2-5214acdff314
+md"""
+## With Mask
+"""
+
 # ╔═╡ 79bfc734-f19d-4d5b-a585-ef02bf2b0144
-function bfield_correction(avg_phantom_path, mask_path; num_iterations, numberFittingLevels=4)
-	inputImage = sitk.ReadImage(avg_phantom_path, sitk.sitkFloat32)
+function bfield_correction(image_path, mask_path)
+	inputImage = sitk.ReadImage(image_path, sitk.sitkFloat32)
 	image = inputImage
 	
 	maskImage = sitk.ReadImage(mask_path, sitk.sitkUInt8)
 	
 	corrector = sitk.N4BiasFieldCorrectionImageFilter()
-	
-	numberFittingLevels = pylist(numberFittingLevels)
-	
-	num_iterations = pylist(num_iterations)
-	corrector.SetMaximumNumberOfIterations(num_iterations)
 
 	corrected_image = corrector.Execute(image, maskImage)
     log_bias_field = corrector.GetLogBiasFieldAsImage(inputImage)
@@ -357,53 +357,126 @@ function bfield_correction(avg_phantom_path, mask_path; num_iterations, numberFi
 	sitk.WriteImage(log_bias_field, log_bias_field_path)
 
 	return (
-		niread(avg_phantom_path),
+		niread(image_path),
 		niread(mask_path),
 		niread(log_bias_field_path),
 		niread(corrected_image_path)
 	)
 end
 
-# ╔═╡ bafa6302-6dbc-4b46-afc2-a414079a0472
-input_image, mask, bfield, corrected_image = bfield_correction(avg_static_phantom_path, mask_path; num_iterations=4);
+# ╔═╡ 211b8727-3aa3-41ae-96ca-3ce4e66a82ec
+md"""
+## Without Mask
+"""
 
-# ╔═╡ 958fc82b-454d-4f00-91c0-4c95bebe4117
-@bind bfield_slider PlutoUI.Slider(axes(bfield, 3); show_value=true)
+# ╔═╡ 4c1ae92a-2290-44c5-88a5-3e244f6be7ff
+function bfield_correction(image_path)
+	inputImage = sitk.ReadImage(image_path, sitk.sitkFloat32)
+	image = inputImage
+	
+	corrector = sitk.N4BiasFieldCorrectionImageFilter()
+
+	corrected_image = corrector.Execute(image)
+    log_bias_field = corrector.GetLogBiasFieldAsImage(inputImage)
+
+	tempdir = mktempdir()
+	corrected_image_path = joinpath(tempdir, "corrected_image.nii")
+	log_bias_field_path = joinpath(tempdir, "log_bias_field.nii")
+
+	sitk.WriteImage(corrected_image, corrected_image_path)
+	sitk.WriteImage(log_bias_field, log_bias_field_path)
+
+	return (
+		niread(image_path),
+		niread(log_bias_field_path),
+		niread(corrected_image_path)
+	)
+end
+
+# ╔═╡ bafa6302-6dbc-4b46-afc2-a414079a0472
+input_image, mask, bfield, corrected_image = bfield_correction(avg_static_phantom_path, mask_path);
+
+# ╔═╡ 317b97a5-d6d4-44ab-a02c-d53321769819
+_, bfield2, corrected_image2 = bfield_correction(avg_static_phantom_path);
+
+# ╔═╡ d21b03e8-ff8f-4875-b9bd-009eb34e11ad
+md"""
+Select Slice: $(@bind bfield_slider PlutoUI.Slider(axes(bfield2, 3); show_value=true))
+
+
+Set color range: 
+  - Low: $(@bind colorrange_low PlutoUI.Slider(Int.(round(minimum(corrected_image))):Int.(round(maximum(corrected_image)))))
+  - High: $(@bind colorrange_high PlutoUI.Slider(Int.(round(minimum(corrected_image))):Int.(round(maximum(corrected_image))); default=Int.(round(maximum(corrected_image)))))
+"""
 
 # ╔═╡ 87f3ccf9-4ee4-466e-a15c-f5000d6a3eca
 let
 	if good_slices_files_ready
-		f = Figure(resolution=(1000, 700))
+		f = Figure(resolution=(1000, 1000))
 		ax = CairoMakie.Axis(
 			f[1, 1],
-			title="Average Static Phantom"
+			title="Input Phantom"
 		)
-		heatmap!(input_image[:, :, bfield_slider], colormap=:grays)
+		heatmap!(input_image[:, :, bfield_slider], colorrange = (colorrange_low, colorrange_high), colormap=:grays)
 	
 		ax = CairoMakie.Axis(
 			f[1, 2],
 			title="Corrected Average Static Phantom"
 		)
-		heatmap!(corrected_image[:, :, bfield_slider], colormap=:grays)
+		heatmap!(corrected_image[:, :, bfield_slider], colorrange = (colorrange_low, colorrange_high), colormap=:grays)
+
+		ax = CairoMakie.Axis(
+			f[2, 1],
+			title="Difference"
+		)
+		heatmap!(corrected_image[:, :, bfield_slider] - input_image[:, :, bfield_slider])
+
+		ax = CairoMakie.Axis(
+			f[2, 2],
+			title="B-Field"
+		)
+		heatmap!(bfield[:, :, bfield_slider])
 		f
 	end
 end
 
-# ╔═╡ efb1f173-b7ef-4ce1-9d72-47fcda97da7d
+# ╔═╡ 9be4a87d-95c0-4561-85d1-ab48c9ea089d
+md"""
+Select Slice: $(@bind bfield_slider2 PlutoUI.Slider(axes(bfield2, 3); show_value=true))
+
+
+Set color range: 
+  - Low: $(@bind colorrange_low2 PlutoUI.Slider(Int.(round(minimum(corrected_image2))):Int.(round(maximum(corrected_image2)))))
+  - High: $(@bind colorrange_high2 PlutoUI.Slider(Int.(round(minimum(corrected_image2))):Int.(round(maximum(corrected_image2))); default=Int.(round(maximum(corrected_image)))))
+"""
+
+# ╔═╡ 6c7fdb03-c6c9-427e-bca4-0114bb32b0d5
 let
 	if good_slices_files_ready
-		f = Figure(resolution=(1000, 700))
+		f = Figure(resolution=(1000, 1000))
 		ax = CairoMakie.Axis(
 			f[1, 1],
-			title="Difference"
+			title="Input Phantom"
 		)
-		heatmap!(corrected_image[:, :, bfield_slider] - input_image[:, :, bfield_slider])
+		heatmap!(input_image[:, :, bfield_slider2], colorrange = (colorrange_low2, colorrange_high2), colormap=:grays)
 	
 		ax = CairoMakie.Axis(
 			f[1, 2],
+			title="Corrected Average Static Phantom"
+		)
+		heatmap!(corrected_image2[:, :, bfield_slider2], colorrange = (colorrange_low2, colorrange_high2), colormap=:grays)
+
+		ax = CairoMakie.Axis(
+			f[2, 1],
+			title="Difference"
+		)
+		heatmap!(corrected_image2[:, :, bfield_slider2] - input_image[:, :, bfield_slider2])
+
+		ax = CairoMakie.Axis(
+			f[2, 2],
 			title="B-Field"
 		)
-		heatmap!(bfield[:, :, bfield_slider], colormap=:grays)
+		heatmap!(bfield2[:, :, bfield_slider2])
 		f
 	end
 end
@@ -418,16 +491,51 @@ phantom_whole = phantom[:, :, good_slices_range, :];
 
 # ╔═╡ 3042e311-40fb-40a0-a4f2-d641dfb07809
 begin 
-	bfc_image = zeros(size(phantom_whole))
+	bfc_phantom = zeros(size(phantom_whole))
 	for i in axes(phantom_whole, 4)
 		for j in axes(phantom_whole, 3)
-			bfc_image[:,:,j,i] = phantom_whole[:, :, j, i] ./ bfield[:, :, j]
+			bfc_phantom[:,:,j,i] = phantom_whole[:, :, j, i] ./ exp.(bfield2[:, :, j])
 		end
 	end
 end
 
-# ╔═╡ 5c7e141d-6a49-4341-a1a4-b3eefd6b5ea5
-bfc_image
+# ╔═╡ 78b90c9f-4859-4710-8e52-46241c969d36
+begin
+	bfc_true_path = "https://www.dropbox.com/s/wetphdvwibhrovm/BFC_time_series.nii?dl=0"
+	bfc_true_nii = niread(download(bfc_true_path))
+end;
+
+# ╔═╡ 0f10f6b7-a97f-4305-b14b-8aafed390d64
+md"""
+Select Slice (New): $(@bind bfield_slider3 PlutoUI.Slider(axes(bfc_phantom, 3); show_value=true))
+
+Select Slice (Ground Truth): $(@bind bfield_slider4 PlutoUI.Slider(axes(bfc_true_nii, 3); show_value=true))
+
+Select Time Point: $(@bind z3 PlutoUI.Slider(axes(bfc_phantom, 4); show_value=true))
+"""
+
+# ╔═╡ b80c17d2-6867-454c-b4cb-b20f7f9d1b3d
+let
+	if good_slices_files_ready
+		f = Figure(resolution=(1000, 1000))
+		ax = CairoMakie.Axis(
+			f[1, 1],
+			title="BFC Phantom"
+		)
+		heatmap!(bfc_phantom[:, :, bfield_slider3, z3], colormap=:grays)
+	
+		ax = CairoMakie.Axis(
+			f[1, 2],
+			title="Ground Truth BFC Phantom"
+		)
+		heatmap!(bfc_true_nii[:, :, bfield_slider4, z3], colormap=:grays)
+		
+		f
+	end
+end
+
+# ╔═╡ 257962f6-5e36-4ed9-acff-9cab7f2d0e5d
+
 
 # ╔═╡ Cell order:
 # ╠═866b498e-52cc-461a-90dc-bfd6d53dd80d
@@ -473,12 +581,20 @@ bfc_image
 # ╠═51a6b51f-55fd-442c-a6a0-5d9be970d300
 # ╠═692360cc-dcb0-456a-8234-f747ce371b1b
 # ╟─659ec1a1-356c-4742-bd63-0ebaa3df5b96
+# ╟─4baad75d-01bc-4389-9cc2-5214acdff314
 # ╠═79bfc734-f19d-4d5b-a585-ef02bf2b0144
 # ╠═bafa6302-6dbc-4b46-afc2-a414079a0472
-# ╟─958fc82b-454d-4f00-91c0-4c95bebe4117
+# ╟─d21b03e8-ff8f-4875-b9bd-009eb34e11ad
 # ╟─87f3ccf9-4ee4-466e-a15c-f5000d6a3eca
-# ╟─efb1f173-b7ef-4ce1-9d72-47fcda97da7d
+# ╟─211b8727-3aa3-41ae-96ca-3ce4e66a82ec
+# ╠═4c1ae92a-2290-44c5-88a5-3e244f6be7ff
+# ╠═317b97a5-d6d4-44ab-a02c-d53321769819
+# ╟─9be4a87d-95c0-4561-85d1-ab48c9ea089d
+# ╟─6c7fdb03-c6c9-427e-bca4-0114bb32b0d5
 # ╟─01455019-c0bd-43b4-9157-c757901e18dc
 # ╠═304923f3-fbe0-4ef6-852b-fab8f49fd43d
 # ╠═3042e311-40fb-40a0-a4f2-d641dfb07809
-# ╠═5c7e141d-6a49-4341-a1a4-b3eefd6b5ea5
+# ╠═78b90c9f-4859-4710-8e52-46241c969d36
+# ╟─0f10f6b7-a97f-4305-b14b-8aafed390d64
+# ╟─b80c17d2-6867-454c-b4cb-b20f7f9d1b3d
+# ╠═257962f6-5e36-4ed9-acff-9cab7f2d0e5d
